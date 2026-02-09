@@ -280,7 +280,7 @@ export default function LoginPage() {
             <img 
               src={loginGif} 
               alt="E-Connect Animation" 
-              className="max-w-full max-h-[600px] w-auto h-auto object-contain"
+              className="max-w-full max-h-[400px] w-auto h-auto object-contain"
             />
           </div>
           

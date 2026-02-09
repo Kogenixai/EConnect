@@ -746,7 +746,7 @@ const AttendanceStats = ({ onClose = () => {} }) => {
                     )}
 
                     {/* Remote Work Information */}
-                    {selectedDateDetails.remoteWork.length > 0 && (
+                    {/* {selectedDateDetails.remoteWork.length > 0 && (
                       <div className="space-y-2">
                         {selectedDateDetails.remoteWork.map((remote, idx) => (
                           <div key={idx} className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -774,7 +774,7 @@ const AttendanceStats = ({ onClose = () => {} }) => {
                           </div>
                         ))}
                       </div>
-                    )}
+                    )} */}
 
                     {/* Leave Information */}
                     {selectedDateDetails.leaves.length > 0 && (

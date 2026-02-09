@@ -162,6 +162,7 @@ const Sidebar = ({ userPicture, userName, isLoggedIn, onLogout = () => {} }) => 
   const isTL = (LS.get("position") || "").toUpperCase(); 
   const isDepart = (LS.get("department") || "").toUpperCase(); 
   const userid=LS.get('userid');
+console.log("department:",isDepart);
 
   const isLeaveDetails = isActive('leave_details');
 return (
@@ -369,6 +370,22 @@ return (
                 <span className="font-medium text-sm">Chat</span>
               </div>
             </Link>
+            <Link to="meetings/assigned">
+              <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                isActive('meetings/assigned') 
+                  ? 'bg-blue-500 text-white shadow-sm' 
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}>
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
+  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+    d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14m-6 0h4a2 2 0 002-2V8a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z" />
+</svg>
+
+
+
+                <span className="font-medium text-sm">Meetings Assigned</span>
+              </div>
+            </Link>
           </>
         )}
 
@@ -397,6 +414,20 @@ return (
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
                 </svg>
                 <span className="font-medium text-sm">Employee Leave</span>
+              </div>
+            </Link>
+            <Link to="meetings/assign">
+              <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                isActive('meetings/assign') 
+                  ? 'bg-blue-500 text-white shadow-sm' 
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}>
+               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
+  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+    d="M8 7V3m8 4V3M3 11h18M12 15v4m-2-2h4M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+</svg>
+
+                <span className="font-medium text-sm">Assign Meeting</span>
               </div>
             </Link>
           </>

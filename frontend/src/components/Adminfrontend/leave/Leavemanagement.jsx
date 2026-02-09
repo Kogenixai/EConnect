@@ -28,14 +28,14 @@ const Leavemanagement = () => {
       link1: "/admin/LeaveManage/leaveapproval",
       link2: "/User/LeaveManage/leaveapproval"
     },
-    {
-      title: "Remote Work Approval",
-      desc: "Easy tracking of employee remote work requests",
-      icon: <FontAwesomeIcon icon={faHome} className="text-6xl mb-6 text-zinc-700" />,
-      button: "View now",
-      link1: "/admin/LeaveManage/wfh",
-      link2:"/User/LeaveManage/wfh",
-    },
+    // {
+    //   title: "Remote Work Approval",
+    //   desc: "Easy tracking of employee remote work requests",
+    //   icon: <FontAwesomeIcon icon={faHome} className="text-6xl mb-6 text-zinc-700" />,
+    //   button: "View now",
+    //   link1: "/admin/LeaveManage/wfh",
+    //   link2:"/User/LeaveManage/wfh",
+    // },
     {
       title: "Employees Leave Details",
       desc: "Easy tracking of employee leave details",
@@ -61,7 +61,7 @@ const Leavemanagement = () => {
           Leave Management
         </h1>
         <div className="my-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {data.map((item, index) => (
               <div
                 key={index}

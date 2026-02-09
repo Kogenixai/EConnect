@@ -24,6 +24,7 @@ import uvicorn
 import Mongo
 import pytz
 import os
+import uuid
 from typing import List,Any, Dict
 from fastapi import UploadFile, File
 from fastapi.responses import FileResponse
@@ -32,6 +33,8 @@ from datetime import datetime
 from bson import ObjectId
 import asyncio
 from dotenv import load_dotenv
+import requests
+import re
 load_dotenv() 
 
 # GridFS setup
@@ -144,7 +147,8 @@ from Mongo import (
     assignments_collection,
     Users,
     messages_collection,
-    files_collection
+    files_collection,
+    create_meeting
     
     
     
@@ -164,6 +168,7 @@ from model import (
     GroupCreate,
     GroupUpdate,
    UpdateGroupPayload,
+   MeetingAssignBaseModel
 )
 from auth.auth_bearer import JWTBearer
 direct_chat_manager = DirectChatManager()
@@ -2359,25 +2364,44 @@ async def get_tasks(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+# @app.get("/list_users")
+# def get_users(role: Optional[str] = Query(None, description="Role: 'TL' or 'TeamMembers'"),
+#               TL: Optional[str] = Query(None, description="Team Lead name, required if role is TeamMembers")):
+#     try:
+#         if role == "TL":
+#             result = get_user_by_position("TL")
+#             if result:
+#                 return result
+#             else:
+#                 raise HTTPException(status_code=404, detail="TL not found")
+#         elif role == "TeamMembers":
+#             if not TL:
+#                 raise HTTPException(status_code=400, detail="TL parameter is required for TeamMembers")
+#             result = get_team_members(TL)
+#             return result
+#         else:
+#             raise HTTPException(status_code=400, detail="Invalid role. Use 'TL' or 'TeamMembers'")
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/list_users")
-def get_users(role: Optional[str] = Query(None, description="Role: 'TL' or 'TeamMembers'"),
-              TL: Optional[str] = Query(None, description="Team Lead name, required if role is TeamMembers")):
+def get_users(role: Optional[str] = Query(None),
+              TL: Optional[str] = Query(None)):
     try:
         if role == "TL":
             result = get_user_by_position("TL")
-            if result:
-                return result
-            else:
-                raise HTTPException(status_code=404, detail="TL not found")
+            return serialize_mongo_doc(result)  # 🔥 CRITICAL
         elif role == "TeamMembers":
             if not TL:
-                raise HTTPException(status_code=400, detail="TL parameter is required for TeamMembers")
+                raise HTTPException(status_code=400, detail="TL required")
             result = get_team_members(TL)
-            return result
+            return serialize_mongo_doc(result)  # 🔥 CRITICAL - WAS MISSING
         else:
-            raise HTTPException(status_code=400, detail="Invalid role. Use 'TL' or 'TeamMembers'")
+            raise HTTPException(status_code=400, detail="Invalid role")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/task/{taskid}/files")
 async def upload_task_file(
@@ -3998,3 +4022,203 @@ async def delete_assigned_doc(data: dict):
     return {"message": f"Document '{docName}' deleted successfully"}
 
 from fastapi import Response
+
+
+# Backend: /api/download/:filename
+@app.get("/download/{doc_type}")
+async def download_document(doc_type: str, userid: str = Query(...)):
+    valid_docs = {"offer_letter", "nda", "resume", "college_id", "aadhaar", "pan"}
+    
+    if doc_type not in valid_docs:
+        raise HTTPException(400, "Invalid document type")
+    
+    user = Users.find_one({"userid": userid})
+    if not user:
+        raise HTTPException(404, "User not found")
+    
+    doc_url = user["documents"].get(doc_type)
+    if not doc_url:
+        raise HTTPException(404, f"{doc_type.replace('_', ' ').title()} not available")
+    
+    print(f"📥 Original URL: {doc_url}")
+    
+    # ✅ EXTRACT FILE ID FROM YOUR URL
+    file_id_match = re.search(r'/d/([a-zA-Z0-9-_]+)', doc_url)
+    if not file_id_match:
+        raise HTTPException(400, "Invalid Google Docs URL")
+    
+    file_id = file_id_match.group(1)
+    print(f"📄 File ID: {file_id}")
+    
+    # ✅ CONVERT TO DIRECT PDF EXPORT
+    pdf_export_url = f"https://docs.google.com/document/d/{file_id}/export?format=pdf"
+    print(f"📤 PDF Export: {pdf_export_url}")
+    
+    try:
+        # Use session with proper headers to bypass Google restrictions
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
+        
+        response = session.get(pdf_export_url, timeout=30)
+        response.raise_for_status()
+        
+        filename = f"{doc_type.replace('_', '-')}_{userid[:8]}.pdf"
+        print(f"✅ Downloaded {len(response.content)} bytes")
+        
+        return StreamingResponse(
+            io.BytesIO(response.content),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Content-Length": str(len(response.content))
+            }
+        )
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Google Docs blocked: {e}")
+        raise HTTPException(500, "Google Docs access restricted. Please use PDF files instead.")
+
+
+
+# TL Meeting Endpoints
+# Add to Server.py
+@app.post("/assign-tl-meeting")
+async def assign_tl_meeting_endpoint(request: dict = Body(...)):
+    """TL assigns meeting - BULLETPROOF VERSION"""
+    try:
+        tl_id = request.get("tl_id")
+        tl_name = request.get("tl_name")
+        meeting_link = request.get("meeting_link")
+        meeting_date = request.get("meeting_date")
+        meeting_time = request.get("meeting_time")
+        team_members = [m for m in request.get("team_members", []) if m]  # Remove nulls
+
+        if not all([tl_id, tl_name, meeting_link, meeting_date, meeting_time, team_members]):
+            raise HTTPException(400, "All fields required")
+
+        # ✅ Generate meeting ID (NO import needed)
+        meeting_id = f"meet_{int(datetime.now().timestamp())}"
+        
+        meeting_data = {
+            "meeting_id": meeting_id,
+            "tl_id": tl_id,
+            "tl_name": tl_name,
+            "meeting_link": meeting_link,
+            "meeting_date": meeting_date,
+            "meeting_time": meeting_time,
+            "team_members": team_members,
+            "status": "scheduled",
+            "created_at": datetime.now(pytz.timezone('Asia/Kolkata')).isoformat()
+        }
+
+        # ✅ DEDICATED MEETINGS COLLECTION (CREATE IF NOT EXISTS)
+        Meetings = db["Meetings"]  # ✅ New collection
+        
+        # Insert meeting
+        result = Meetings.insert_one(meeting_data)
+        print(f"✅ Meeting created: {meeting_id} in Meetings collection")
+
+        # Add reference to each team member
+        for member_id in team_members:
+            Users.update_one(
+                {"userid": member_id},
+                {"$push": {
+                    "assigned_meetings": {
+                        **{k: v for k, v in meeting_data.items() if k != "team_members"},
+                        "status": "scheduled"
+                    }
+                }},
+                upsert=True  # Create user doc if not exists
+            )
+
+        return {
+            "success": True,
+            "meeting_id": meeting_id,
+            "message": "Meeting assigned successfully",
+            "team_members_count": len(team_members),
+            "meetings_collection_id": str(result.inserted_id)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Meeting assignment error: {e}")
+        raise HTTPException(500, f"Failed to assign meeting: {str(e)}")
+
+
+
+@app.get("/tl-meetings/{tl_id}")
+def get_tl_meetings_endpoint(tl_id: str):  # 🔥 RENAMED - NO CONFLICT
+    """Get ALL meetings assigned BY this TL"""
+    try:
+        # 🔥 DIRECT MONGO - NO IMPORT/RECURSION
+        from Mongo import Meetings  # Your existing import
+        
+        tl_meetings = list(Meetings.find({"tl_id": tl_id}).sort("created_at", -1))
+        
+        # Use YOUR serialize_mongo_doc function
+        return serialize_mongo_doc({
+            "tl_id": tl_id,
+            "tl_meetings": tl_meetings,
+            "total": len(tl_meetings)
+        })
+    except Exception as e:
+        print(f"❌ TL Meetings Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/employee-meetings/{userid}")
+async def get_employee_meetings(userid: str):
+    """Get meetings from BOTH collections"""
+    try:
+        # 1. Main Meetings collection (Primary source)
+        Meetings = db["Meetings"]
+        main_meetings = list(Meetings.find({"team_members": userid}).sort("created_at", -1))
+        
+        # 2. Backup: User's assigned_meetings array
+        user_meetings = []
+        user_doc = Users.find_one({"userid": userid}, {"assigned_meetings": 1})
+        if user_doc and user_doc.get("assigned_meetings"):
+            user_meetings = user_doc["assigned_meetings"]
+        
+        # Combine + dedupe
+        all_meetings = main_meetings + user_meetings
+        
+        # Format response
+        formatted = []
+        for meeting in all_meetings:
+            formatted.append({
+                "meeting_id": meeting.get("meeting_id", str(meeting.get("_id", ""))),
+                "tl_id": meeting.get("tl_id"),
+                "tl_name": meeting.get("tl_name", "Unknown TL"),
+                "meeting_link": meeting.get("meeting_link"),
+                "meeting_date": meeting.get("meeting_date"),
+                "meeting_time": meeting.get("meeting_time"),
+                "status": meeting.get("status", "scheduled"),
+                "created_at": meeting.get("created_at")
+            })
+        
+        return {
+            "success": True,
+            "meetings": formatted,
+            "count": len(formatted)
+        }
+    except Exception as e:
+        print(f"Employee meetings error: {e}")
+        return {"success": False, "meetings": [], "count": 0}
+
+
+
+
+@app.put("/update-meeting-status")
+async def update_meeting_status(status_data: dict = Body(...)):
+    """Employee marks meeting as attended/missed"""
+    meeting_id = status_data.get("meeting_id")
+    userid = status_data.get("userid")
+    status = status_data.get("status")  # "attended", "missed"
+    
+    success = update_meeting_status(meeting_id, userid, status)
+    return {"success": success, "message": "Status updated"}
+
+

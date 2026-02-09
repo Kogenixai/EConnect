@@ -206,6 +206,16 @@ class DeleteLeave(BaseModel):
     requestDate: str
     leavetype: str
 
+class Documents(BaseModel):
+    offer_letter: Optional[str] = None
+    nda: Optional[str] = None
+    resume: Optional[str] = None
+    college_id: Optional[str] = None
+    aadhaar: Optional[str] = None
+    pan: Optional[str] = None
+
+
+
 class AddEmployee(BaseModel):
     name: str
     email: str
@@ -218,8 +228,9 @@ class AddEmployee(BaseModel):
     skills: List[Dict[str, Union[str, int]]] 
     TL: str
     personal_email: str
-    resume_link: str
+
     status: str
+    documents: Documents 
     # ip: str
     
 class EditEmployee(BaseModel):
@@ -235,8 +246,9 @@ class EditEmployee(BaseModel):
     skills: List[Dict[str, Union[str, int]]]
     TL: str
     personal_email: str
-    resume_link: str
+
     status: str
+    documents: Documents
     # ip: str
     
     @validator('skills')
@@ -391,3 +403,19 @@ class GroupUpdate(BaseModel):
 class UpdateGroupPayload(BaseModel):
     name: str
     members: list[str]
+
+class MeetingAssignBaseModel(BaseModel):
+    tl_id: str
+    meeting_link: str
+    meeting_date: date
+    meeting_time: str
+    team_members: List[str]  # List of userids
+
+class MeetingBaseModel(BaseModel):
+    meeting_id: str
+    tl_id: str
+    meeting_link: str
+    meeting_date: date
+    meeting_time: str
+    team_members: List[str]
+    created_at: datetime = Field(default_factory=datetime.utcnow)

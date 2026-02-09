@@ -941,13 +941,17 @@ export default function Chat() {
     }, 2000);
   };
 
-  const getInitials = (name = "") =>
-    name
-      .split(" ")
-      .map((n) => n[0] || "")
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
+const getInitials = (name = "") => {
+  if (!name || typeof name !== "string") return "";
+
+  return name
+    .trim()
+    .split(/\s+/)
+    .map(word => word[0])
+    .join("")
+    .toUpperCase();
+};
+
 
   const activeMessages = Array.isArray(messages[activeChat.chatId]?.messages)
     ? messages[activeChat.chatId].messages
@@ -963,12 +967,15 @@ export default function Chat() {
         })
     : [];
 
-  const filteredContacts = contacts.filter((c) =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  const filteredGroups = groups.filter((g) =>
-    g.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+const safeSearch = (searchTerm ?? "").toLowerCase();
+
+const filteredContacts = contacts.filter((c) =>
+  (c?.name ?? "").toLowerCase().includes(safeSearch)
+);
+
+const filteredGroups = groups.filter((g) =>
+  (g?.name ?? "").toLowerCase().includes(safeSearch)
+);
 
   const sortedFilteredGroups = [...filteredGroups].sort((a, b) => {
     const timeA = lastMessageTime[a._id] || 0;

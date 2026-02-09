@@ -109,6 +109,7 @@ const LeaveDetails = () => {
       if (leaveTypeFilter !== 'All') params.append('leaveTypeFilter', leaveTypeFilter);
       if (departmentFilter !== 'All') params.append('departmentFilter', departmentFilter);
       if (positionFilter !== 'All') params.append('positionFilter', positionFilter);
+      console.log(userRole);
       
       switch (userRole) {
         case 'admin':

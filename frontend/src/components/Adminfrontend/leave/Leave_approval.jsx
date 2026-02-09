@@ -108,6 +108,7 @@ const Leaveapproval = () => {
       } else if (department === "hr") {
         role = "hr";
       }
+console.log("role:",role);
 
 
       // Build request parameters
@@ -126,6 +127,7 @@ const Leaveapproval = () => {
       // Use the new combined endpoint
       const response = await axios.get(`${ipadr}/leave_requests`, { params: requestParams });
       console.log("Leave Approval API Response:", response); // Debug log
+console.log(requestParams);
 
       // Check for errors in response
       if (response.data.error) {

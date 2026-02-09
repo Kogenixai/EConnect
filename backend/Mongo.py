@@ -18,6 +18,7 @@ import traceback
 import os
 from gridfs import GridFS
 from dotenv import load_dotenv
+import uuid
 load_dotenv()
 # Helper function for timezone-aware timestamps
 def get_current_timestamp_iso():
@@ -40,7 +41,7 @@ from pymongo import MongoClient
 
 from dotenv import load_dotenv
 load_dotenv() 
-
+from typing import Any
 
 
   # For storing yearly working days
@@ -81,9 +82,28 @@ Managers = db.managers
 holidays_collection = db["holidays"]
 AttendanceStats = db["attendance_stats"]  # For caching calculated stats
 WorkingDays = db["working_days"]
-
+Meetings = client.Meetings
 Notifications = db.notifications
 
+
+def serialize_mongo_doc(obj: Any) -> Any:
+    """Convert MongoDB documents to JSON-serializable format"""
+    if obj is None:
+        return None
+    
+    if isinstance(obj, list):
+        return [serialize_mongo_doc(item) for item in obj]
+    
+    if isinstance(obj, dict):
+        return {key: serialize_mongo_doc(value) for key, value in obj.items()}
+    
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    
+    return obj
 
 def Hashpassword(password):
     bytePwd = password.encode('utf-8')
@@ -1534,7 +1554,7 @@ def store_Other_leave_request(userid, employee_name, time, leave_type, selected_
         
         employee_id = get_employee_id_from_db(employee_name)
          
-        if num_weekdays_from_to <= 3 and future_days <= 3:
+        if num_weekdays_from_to <= 20 and future_days <= 20:
             new_request = {
                 "userid": userid,
                 "Employee_ID": employee_id, 
@@ -1551,7 +1571,7 @@ def store_Other_leave_request(userid, employee_name, time, leave_type, selected_
             print("result", result)
             return "Leave request stored successfully"
         else:
-            return "Other Leave can be taken for a maximum of 3 days"
+            return "Other Leave can be taken for a maximum of 20 days"
     # else:
         # return "Other Leave request can only be made at least 2 days prior"
 
@@ -2868,6 +2888,28 @@ def edit_an_employee(employee_data):
         for field in required_fields:
             if not employee_data.get(field):
                 raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+        
+        # Handle Documents - Simple validation
+        documents_data = employee_data.get('documents', {})
+        if documents_data:
+            # Validate documents structure (all fields optional strings)
+            valid_doc_fields = {
+                'offer_letter', 'nda', 'resume', 
+                'college_id', 'aadhaar', 'pan'
+            }
+            cleaned_docs = {}
+            for key, value in documents_data.items():
+                if key in valid_doc_fields and isinstance(value, str):
+                    cleaned_docs[key] = value
+                elif key in valid_doc_fields and value is None:
+                    cleaned_docs[key] = ""
+            
+            employee_data['documents'] = cleaned_docs
+            print(f"Validated documents: {employee_data['documents']}")
+        else:
+            employee_data['documents'] = {}
+        
+        # Clean education and skills (existing code)
         clean_education = [
             edu for edu in employee_data.get('education', []) 
             if edu.get('degree') or edu.get('institution') or edu.get('year')
@@ -2878,11 +2920,10 @@ def edit_an_employee(employee_data):
             if skill.get('name') and skill.get('level')
         ]
         
-        # Update the employee_data with cleaned arrays
         employee_data['education'] = clean_education
         employee_data['skills'] = clean_skills
         
-        # First, try to find and update in Users collection by userid
+        # Rest of your update logic stays exactly the same...
         result = Users.find_one_and_update(
             {"userid": employee_data["userid"]},
             {"$set": employee_data},
@@ -3190,18 +3231,35 @@ def get_user_by_position(position):
 #     team_members = list(Users.find({"TL":TL}, {"_id":0, "assigned_docs": 0}))
 #     print("Fetching team members for TL:", team_members)
 #     return team_members
+# def get_team_members(TL):
+#     users = Users.find(
+#         {"TL": TL},
+#         {"assigned_docs": 0}   # ❌ do NOT remove _id
+#     )
+
+#     team_members = []
+#     for user in users:
+#         user["user_id"] = str(user["_id"])  # convert ObjectId → string
+#         del user["_id"]                     # hide mongo internal id
+#         team_members.append(user)
+
+#     print("Fetching team members for TL:", team_members)
+#     return team_members
 def get_team_members(TL):
-    users = Users.find(
-        {"TL": TL},
-        {"assigned_docs": 0}   # ❌ do NOT remove _id
-    )
-
+    users = Users.find({"TL": TL}, {"assigned_docs": 0})
     team_members = []
+    
     for user in users:
-        user["user_id"] = str(user["_id"])  # convert ObjectId → string
-        del user["_id"]                     # hide mongo internal id
+        # 🔥 FIX 1: Convert ALL ObjectIds recursively
+        user = serialize_mongo_doc(user)  # Use your existing function
+        
+        # 🔥 FIX 2: Add user_id field
+        user["user_id"] = str(user.get("_id", ""))
+        if "_id" in user:
+            del user["_id"]
+            
         team_members.append(user)
-
+    
     print("Fetching team members for TL:", team_members)
     return team_members
 
@@ -6697,3 +6755,94 @@ async def create_document_review_notification(userid, doc_name, reviewer_name, r
         print(f"❌ Error creating document review notification: {e}")
         traceback.print_exc()
         return None
+
+def get_team_members_by_tl(tl_name: str):
+    """Get all team members under a TL"""
+    team_members = list(Users.find({"TL": tl_name}, {"userid": 1, "name": 1, "position": 1}))
+    return [{"userid": str(member["_id"]), "name": member.get("name", "Unknown"), "position": member.get("position", "")} 
+            for member in team_members if member.get("position") != "TL"]
+
+def assign_tl_meeting(tl_id: str, meeting_link: str, meeting_date: str, meeting_time: str, team_members: list):
+    """Assign meeting to team members"""
+    meeting_data = {
+        "tl_id": tl_id,
+        "meeting_link": meeting_link,
+        "meeting_date": meeting_date,
+        "meeting_time": meeting_time,
+        "team_members": team_members,
+        "created_at": get_current_timestamp_iso()
+    }
+    result = Meetings.insert_one(meeting_data)
+    meeting_id = str(result.inserted_id)
+    
+    # Update each team member
+    for member_id in team_members:
+        Users.update_one(
+            {"userid": member_id},
+            {"$push": {"assigned_meetings": {
+                "meeting_id": meeting_id,
+                "tl_id": tl_id,
+                "meeting_link": meeting_link,
+                "meeting_date": meeting_date,
+                "meeting_time": meeting_time,
+                "status": "scheduled"
+            }}}
+        )
+    return meeting_id
+
+def get_tl_meetings(tl_id: str):
+    """Get all meetings assigned by this TL"""
+    return list(Meetings.find({"tl_id": tl_id}).sort("created_at", -1))
+
+def get_employee_meetings(userid: str):
+    """Get all meetings assigned to this employee"""
+    user = Users.find_one({"userid": userid}, {"assigned_meetings": 1})
+    if not user or not user.get("assigned_meetings"):
+        return []
+    meetings = []
+    for meeting in user["assigned_meetings"]:
+        meeting_doc = Meetings.find_one({"_id": ObjectId(meeting["meeting_id"])})
+        if meeting_doc:
+            meetings.append({**meeting, **meeting_doc})
+    return meetings
+
+def update_meeting_status(meeting_id: str, userid: str, status: str):
+    """Update meeting status (attended/missed)"""
+    Users.update_one(
+        {"userid": userid, "assigned_meetings.meeting_id": meeting_id},
+        {"$set": {"assigned_meetings.$.status": status}}
+    )
+    return True
+
+
+def create_meeting(tl_id, tl_name, meeting_link, meeting_date, meeting_time, team_members):
+    """Create meeting in dedicated collection"""
+    meeting_id = str(uuid.uuid4())
+    meeting_data = {
+        "_id": ObjectId(),
+        "meeting_id": meeting_id,
+        "tl_id": tl_id,
+        "tl_name": tl_name,
+        "meeting_link": meeting_link,
+        "meeting_date": meeting_date,
+        "meeting_time": meeting_time,
+        "team_members": [m for m in team_members if m],  # Remove nulls
+        "status": "scheduled",
+        "created_at": get_current_timestamp_iso()
+    }
+    Meetings.insert_one(meeting_data)
+    return meeting_id
+
+def get_employee_meetings(userid: str):
+    """Get meetings from dedicated collection"""
+    meetings = list(Meetings.find({"team_members": userid}).sort("created_at", -1))
+    for meeting in meetings:
+        meeting["meeting_id"] = str(meeting.get("meeting_id", meeting["_id"]))
+    return meetings
+
+
+
+
+def get_tl_meetings(tl_id: str):
+    """Get all meetings created BY this TL (SYNC)"""
+    return list(Meetings.find({"tl_id": tl_id}).sort("created_at", -1))

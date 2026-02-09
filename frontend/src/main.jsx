@@ -44,6 +44,8 @@ import OnboardingDocs from './components/docs/OnboardingDocs';
 import AdminDocsReview from './components/Adminfrontend/AdminDocsReview';
 import Fileuploader from './components/docs/file/Fileuploader';
 import GlobalNotificationToast from './components/notifications/GlobalNotificationToast';
+import TLMeetingAssign from "./components/Meeting/TLMeetingAssign";
+import UserMeeting from "./components/Meeting/UserMeeting";
 
 
 // Create a simple dashboard home component for admin
@@ -144,6 +146,11 @@ const router = createBrowserRouter([
       // Docs
       { path: "docs/my-documents", element: <OnboardingDocs /> },
       { path: "docs/file/fileuploader", element: <Fileuploader /> },
+
+
+      // Meetings
+      { path: "meetings/assign", element: <TLMeetingAssign /> },
+      { path: "meetings/assigned", element: <UserMeeting/> }
     ],
   },
 

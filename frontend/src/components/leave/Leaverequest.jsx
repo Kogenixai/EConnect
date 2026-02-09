@@ -438,7 +438,7 @@ const LeaveRequest = () => {
                 />
                 <span className="ml-2 font-poppins text-sm">Permission</span>
               </label>
-              <label className="inline-flex items-center ml-4">
+              {/* <label className="inline-flex items-center ml-4">
                 <input
                   type="radio"
                   className="form-radio"
@@ -447,7 +447,7 @@ const LeaveRequest = () => {
                   onChange={handleLeaveTypeChange}
                 />
                 <span className="ml-2 font-poppins text-sm">Bonus Leave</span>
-              </label>
+              </label> */}
             </div>
           </div>
           

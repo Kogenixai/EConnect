@@ -23,11 +23,19 @@ const EmployeeDetails = () => {
         ],
         skills: [{ name: '', level: '' }],
         status: '',
+        documents: {
+  offer_letter: "",
+  nda: "",
+  resume: "",
+  college_id: "",
+  aadhaar: "",
+  pan: "",
+},
     });
     const [options, setOptions] = useState([]);
     const { id } = useParams();
     const navigate = useNavigate();
-
+ const [activeTab, setActiveTab] = useState("basic");
     const ip = import.meta.env.VITE_HOST_IP;
 
     useEffect(() => {
@@ -41,7 +49,7 @@ const EmployeeDetails = () => {
                     name: EmployeeDtls.name || '',
                     email: EmployeeDtls.email || '',
                     personal_email: EmployeeDtls.personal_email || '',
-                    resume_link: EmployeeDtls.resume_link || '',
+                    // resume_link: EmployeeDtls.resume_link || '',
                     TL: EmployeeDtls.TL || '',
                     phone: EmployeeDtls.phone || '',
                     address: EmployeeDtls.address || '',
@@ -51,8 +59,18 @@ const EmployeeDetails = () => {
                     education: EmployeeDtls.education || [{ degree: '', institution: '', year: '' }],
                     skills: EmployeeDtls.skills || [{ name: '', level: '' }],
                     status: EmployeeDtls.status || '', 
+                    documents: EmployeeDtls.documents || {
+                        offer_letter: "",
+                        nda: "",
+                        resume: "",
+                        college_id: "",
+                        aadhaar: "",
+                        pan: "",
+                    },
                 };
                 setEmployeeData(safeEmployeeData);
+                console.log(employeeData);
+                
             } catch (error) {
                 console.error("Error fetching employee data:", error);
                 setEmployeeData({
@@ -70,6 +88,14 @@ const EmployeeDetails = () => {
                     education: [{ degree: '', institution: '', year: '' }],
                     skills: [{ name: '', level: '' }],
                     status: '',
+                    documents: EmployeeDtls.documents || {
+                        offer_letter: "",
+                        nda: "",
+                        resume: "",
+                        college_id: "",
+                        aadhaar: "",
+                        pan: "",
+                    },
                 });
             }
         };
@@ -132,6 +158,7 @@ const EmployeeDetails = () => {
                     level: parseInt(skill.level) || 0,
                 })),
             status: employeeData.status,
+            documents: employeeData.documents,
         };
 
         console.log("Payload:", payload);
@@ -224,16 +251,54 @@ const EmployeeDetails = () => {
     const handleResumeChange = (e) => {
         setEmployeeData({ ...employeeData, resume_link: e.target.value });
     };
+   const handleDocumentChange = (e) => {
+  const { name, value } = e.target;
 
-    return (
-        <div className="min-h-screen bg-gray-50 py-8 px-4">
-            <form
-                className="bg-white p-6 rounded-lg shadow-md w-full max-w-6xl mx-auto border"
-                onSubmit={handleSubmit}
-            >
-                <h2 className="text-xl font-semibold mb-6 text-center">Employee Details</h2>
-                <div className="grid grid-cols-4 gap-4">
-                   
+  setEmployeeData({
+    ...employeeData,
+    documents: {
+      ...employeeData.documents,
+      [name]: value,
+    },
+  });
+};
+
+
+
+  return (
+    <div className="min-h-screen  py-8 px-4">
+        <form
+            className="bg-white p-6 rounded-lg shadow-md w-full max-w-6xl mx-auto border"
+            onSubmit={handleSubmit}
+        >
+            <h2 className="text-xl font-semibold mb-6 text-center">Employee Details</h2>
+            
+            {/* Tab Headers */}
+            <div className="flex flex-wrap gap-2 mb-6">
+                {[
+                    { id: "basic", label: "Basic Info" },
+                    { id: "work", label: "Work Info" },
+                    { id: "education", label: "Education & Skills" },
+                    { id: "documents", label: "Documents" },
+                ].map(tab => (
+                    <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`px-4 py-2 rounded text-sm font-medium transition
+                            ${activeTab === tab.id
+                                ? "bg-blue-500 text-white"
+                                : "bg-gray-100 hover:bg-gray-200"
+                            }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* Tab Content */}
+            {activeTab === "basic" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     <div>
                         <label className="block mb-1">Name</label>
                         <input
@@ -245,7 +310,6 @@ const EmployeeDetails = () => {
                             required
                         />
                     </div>
-
                     <div>
                         <label className="block mb-1">Email</label>
                         <input
@@ -257,7 +321,6 @@ const EmployeeDetails = () => {
                             required
                         />
                     </div>
-
                     <div>
                         <label className="block mb-1">Personal Email</label>
                         <input
@@ -268,7 +331,6 @@ const EmployeeDetails = () => {
                             className="w-full border border-gray-300 rounded px-3 py-2"
                         />
                     </div>
-
                     <div>
                         <label className="block mb-1">Phone</label>
                         <input
@@ -280,9 +342,13 @@ const EmployeeDetails = () => {
                             required
                         />
                     </div>
+                </div>
+            )}
 
-                     <div>
-                       <label className="block mb-1">Position</label>
+            {activeTab === "work" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label className="block mb-1">Position</label>
                         <select
                             name="position"
                             value={employeeData.position}
@@ -296,21 +362,20 @@ const EmployeeDetails = () => {
                             <option value="HR">HR</option>
                         </select>
                     </div>
-
                     <div>
                         <label className="block mb-1">Department</label>
                         <input
                             type="text"
                             name="department"
                             value={employeeData.department}
-                             onChange={(e) => {
-                            const v = e.target.value;
-                            handleDepartmentChange({
-                                target: {
-                                name: "department",
-                                value: v.toLowerCase() === "hr" ? "HR" : v
-                                }
-                            });
+                            onChange={(e) => {
+                                const v = e.target.value;
+                                handleDepartmentChange({
+                                    target: {
+                                        name: "department",
+                                        value: v.toLowerCase() === "hr" ? "HR" : v
+                                    }
+                                });
                             }}
                             onFocus={() => setShowDeptHint(true)}
                             onBlur={() => setShowDeptHint(false)}
@@ -318,10 +383,10 @@ const EmployeeDetails = () => {
                             required
                         />
                         {showDeptHint && (
-                    <p className="text-xs text-red-500 mt-1">
-                    HR department should be entered only as: HR
-                    </p>
-                )}
+                            <p className="text-xs text-red-500 mt-1">
+                                HR department should be entered only as: HR
+                            </p>
+                        )}
                     </div>
 
                     <div>
@@ -365,6 +430,36 @@ const EmployeeDetails = () => {
                     </div>
 
                     <div className="col-span-4">
+                        <label className="block mb-1">Address</label>
+                        <textarea
+                            name="address"
+                            value={employeeData.address}
+                            onChange={handleAddressChange}
+                            className="w-full border border-gray-300 rounded px-3 py-2"
+                            rows="2"
+                            required
+                        />
+                    </div>
+
+                    <div className="col-span-4">
+                        <label className="block mb-1">Resume Link</label>
+                        <input
+                            type="text"
+                            name="resume_link"
+                            value={employeeData.resume_link}
+                            onChange={handleResumeChange}
+                            className="w-full border border-gray-300 rounded px-3 py-2"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {activeTab === "education" && (
+                <div className="space-y-6 mb-6">
+                    
+
+                    {/* Education Section */}
+                    <div className="col-span-4">
                         <label className="block mb-1">Education</label>
                         {employeeData.education.map((edu, index) => (
                             <div key={`education-${index}`} className="grid grid-cols-3 gap-4 mb-2">
@@ -394,15 +489,12 @@ const EmployeeDetails = () => {
                                 />
                             </div>
                         ))}
-                        <button
-                            type="button"
-                            onClick={addEducation}
-                            className="text-blue-500 mt-2"
-                        >
+                        <button type="button" onClick={addEducation} className="text-blue-500 mt-2">
                             Add Another Education
                         </button>
                     </div>
 
+                    {/* Skills Section */}
                     <div className="col-span-4">
                         <label className="block mb-1">Skills</label>
                         {employeeData.skills.map((skill, index) => (
@@ -415,7 +507,7 @@ const EmployeeDetails = () => {
                                     onChange={(e) => handleSkillChange(e, index)}
                                     className="border border-gray-300 rounded px-3 py-2"
                                 />
-                               <input
+                                <input
                                     type="number"
                                     name="level"
                                     placeholder="Skill Level"
@@ -425,51 +517,50 @@ const EmployeeDetails = () => {
                                     max="100"
                                     className="border border-gray-300 rounded px-3 py-2"
                                 />
-
                             </div>
                         ))}
-                        <button
-                            type="button"
-                            onClick={addSkill}
-                            className="text-blue-500 mt-2"
-                        >
+                        <button type="button" onClick={addSkill} className="text-blue-500 mt-2">
                             Add Another Skill
                         </button>
                     </div>
-
-                    <div className="col-span-4">
-                        <label className="block mb-1">Address</label>
-                        <textarea
-                            name="address"
-                            value={employeeData.address}
-                            onChange={handleAddressChange}
-                            className="w-full border border-gray-300 rounded px-3 py-2"
-                            rows="2"
-                            required
-                        />
-                    </div>
-
-                    <div className="col-span-4">
-                        <label className="block mb-1">Resume Link</label>
-                        <input
-                            type="text"
-                            name="resume_link"
-                            value={employeeData.resume_link}
-                            onChange={handleResumeChange}
-                            className="w-full border border-gray-300 rounded px-3 py-2"
-                        />
-                    </div>
                 </div>
+            )}
 
-                <button
-                    type="submit"
-                    className="w-full bg-blue-500 text-white py-2 rounded mt-6 hover:bg-blue-600 transition"
-                >
-                    Confirm
-                </button>
-            </form>
-        </div>
-    );
+            {activeTab === "documents" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                    {[
+                        { key: "offer_letter", label: "Offer Letter Link" },
+                        { key: "nda", label: "NDA Link" },
+                        { key: "resume", label: "Resume Link" },
+                        { key: "college_id", label: "College ID" },
+                        { key: "aadhaar", label: "Aadhaar" },
+                        { key: "pan", label: "PAN" },
+                    ].map(doc => (
+                        <div key={doc.key}>
+                            <label className="block mb-1">{doc.label}</label>
+                            <input
+                                type="text"
+                                name={doc.key}
+                                value={employeeData.documents?.[doc.key] || ""}
+                                onChange={(e) => handleDocumentChange(e)}  // Use proper handler
+                                className="w-full border border-gray-300 rounded px-3 py-2"
+                            />
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Submit Button - Outside all tabs */}
+            <button
+                type="submit"
+                className="w-full bg-blue-500 text-white py-2 rounded mt-6 hover:bg-blue-600 transition"
+            >
+                Confirm
+            </button>
+        </form>
+    </div>
+);
+
 };
 
 export default EmployeeDetails;

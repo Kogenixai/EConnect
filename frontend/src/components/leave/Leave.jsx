@@ -118,7 +118,7 @@ const LeaveApplication = () => {
               </Link>
             </div>
 
-            <div className="px-5 py-8 rounded-lg bg-blue-50 bg-gradient-to-tr from-white to-blue-100 transition-transform duration-300 transform hover:scale-105 border-x shadow-xl w-1/4 flex flex-col justify-between">
+            {/* <div className="px-5 py-8 rounded-lg bg-blue-50 bg-gradient-to-tr from-white to-blue-100 transition-transform duration-300 transform hover:scale-105 border-x shadow-xl w-1/4 flex flex-col justify-between">
               <div>
                 <FontAwesomeIcon
                   icon={faHome}
@@ -143,7 +143,7 @@ const LeaveApplication = () => {
                   Apply Now
                 </button>
               </Link>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
